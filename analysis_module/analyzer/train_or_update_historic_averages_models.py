@@ -65,17 +65,25 @@ logger_m.log_info('_tmp_train_or_update_historic_averages_models_3',
 # 4.3.5 - 4.3.9 Comparison with historic averages for:
 # request count, response size, request size, response duration, request duration
 for time_window, train_mode in analyzer_conf.historic_averages_time_windows:
-    
-    logger_m.log_info('_tmp_train_or_update_historic_averages_models_4', 
-                      "Comparison with historic averages (timeunit %s, mode %s) ..." % (str(time_window['timeunit_name']), train_mode))
-    last_fit_timestamp = db_manager.get_timestamp(ts_type="last_fit_timestamp", model_type=time_window['timeunit_name'])
+
+    logger_m.log_info('_tmp_train_or_update_historic_averages_models_4',
+                      "Comparison with historic averages (timeunit %s, mode %s) ..." % (
+                      str(time_window['timeunit_name']), train_mode))
+
+    last_fit_timestamp = db_manager.get_timestamp(ts_type="last_fit_timestamp",
+                                                  model_type=time_window['timeunit_name'])
     last_fit_timestamp = last_fit_timestamp if train_mode != "retrain" else None
-    
+
+    min_incident_creation_timestamp = last_fit_timestamp - datetime.timedelta(
+        minutes=analyzer_conf.incident_expiration_time)
+
     start = time.time()
-    logger_m.log_info('_tmp_train_or_update_historic_averages_models_4_1', 
-                      "Retrieving data according to service call stages (timeunit %s, mode %s) ..." % (str(time_window['timeunit_name']), train_mode))
-    logger_m.log_heartbeat("Retrieving data according to service call stages (%s model)" % time_window['timeunit_name'],
-                           settings.HEARTBEAT_PATH, settings.HEARTBEAT_FILE)
+    logger_m.log_info('_tmp_train_or_update_historic_averages_models_4_1',
+                      "Retrieving data according to service call stages (timeunit %s, mode %s) ..." % (
+                      str(time_window['timeunit_name']), train_mode))
+    logger_m.log_heartbeat(
+        "Retrieving data according to service call stages (%s model)" % time_window['timeunit_name'],
+        settings.HEARTBEAT_PATH, settings.HEARTBEAT_FILE)
     data_regular, data_first_train, data_first_retrain = db_manager.get_data_for_train_stages(
         sc_regular=sc_regular,
         sc_first_model=sc_first_model,
@@ -84,7 +92,9 @@ for time_window, train_mode in analyzer_conf.historic_averages_time_windows:
         max_incident_creation_timestamp=max_incident_creation_timestamp,
         last_fit_timestamp=last_fit_timestamp,
         agg_minutes=time_window["agg_window"]["agg_minutes"],
-        max_request_timestamp=max_request_timestamp)
+        max_request_timestamp=max_request_timestamp,
+        min_incident_creation_timestamp=min_incident_creation_timestamp,
+        aggregation_timeunits=[time_window['agg_window']['agg_window_name']])
     data = pd.concat([data_regular, data_first_train, data_first_retrain])
     
     logger_m.log_info('train_or_update_historic_averages_models', "Data (regular training) shape is: %s" % str(data_regular.shape))
